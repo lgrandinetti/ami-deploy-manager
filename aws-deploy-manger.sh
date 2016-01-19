@@ -89,9 +89,9 @@ function newAmiScreen {
   printSeparator
   if [[ $REPLY =~ ^[Ss]$ ]]
   then
-    echo -n "# Enviando solicitacão de criacão da AMI... "
+    echo -n "Enviando solicitacão de criacão da AMI... "
     jsonFile=/tmp/createAmiVersion`date +%s`.json
-    aws ec2 create-image --instance-id "$INSTANCE_ID" --name "$IMAGE_NAME" --no-reboot > $jsonFile
+    aws ec2 create-image --instance-id "$INSTANCE_ID" --name "$IMAGE_NAME - $versionName" --no-reboot > $jsonFile
     if [ "$?" -ne 0 ] ; then
       echo -e "${RED} [FALHOU]${NC}"
       echo "Erro ao criar ami!! Abortando."
