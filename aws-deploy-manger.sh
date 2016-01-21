@@ -163,8 +163,8 @@ function listAmiScreen {
 
 ## List AMI 'frame'
 function listAmiFrame {
-  json=`aws ec2 describe-images --filters Name=tag:${CONTROL_TAG},Values=true`
   echo -n "Carregando listagem..."
+  json=`aws ec2 describe-images --filters Name=tag:${CONTROL_TAG},Values=true`
   if [ "$?" -ne 0 ] ; then
     echo -e "${RED} [FALHOU]${NC}"
   else
@@ -174,8 +174,8 @@ function listAmiFrame {
   amiIdList=`echo $json | jq -r '.[] | .[] | .ImageId'`
   versionList=`echo $json | jq -r ".[] | .[] | .Tags | .[] | if .Key == \"${VERSION_TAG}\"then .Value else \"\"  end | select(length > 0)"`
   finalList=`paste <(echo "$amiIdList") <(echo "$versionList") | sed 's/\t/ | /'`
-  echo "  AMI ID     | Versão "
-  echo "$finalList"
+  echo -e "${ORANGE}  AMI ID     | Versão ${NC}"
+  echo -e "${YELLOW}${finalList}${NC}"
   
 }
 
