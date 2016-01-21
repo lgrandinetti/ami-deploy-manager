@@ -126,14 +126,8 @@ function newAmiScreen {
 function listAmiScreen {
   clear
   printHeader "Listagem e Gerenciamento de AMI's"
-  echo -n "Carregando listagem..."
-  printSeparator
   listAmiFrame
-  if [ "$?" -ne 0 ] ; then
-    echo -e "${RED} [FALHOU]${NC}"
-  else
-    echo -e "${GREEN} [OK]${NC}"
-  fi
+  
   printSeparator
   
   echo -e "Escolha uma opcão:"
@@ -170,6 +164,13 @@ function listAmiScreen {
 ## List AMI 'frame'
 function listAmiFrame {
   json=`aws ec2 describe-images --filters Name=tag:${CONTROL_TAG},Values=true`
+  echo -n "Carregando listagem..."
+  if [ "$?" -ne 0 ] ; then
+    echo -e "${RED} [FALHOU]${NC}"
+  else
+    echo -e "${GREEN} [OK]${NC}"
+  fi
+  printSeparator
   amiIdList=`echo $json | jq -r '.[] | .[] | .ImageId'`
   versionList=`echo $json | jq -r ".[] | .[] | .Tags | .[] | if .Key == \"${VERSION_TAG}\"then .Value else \"\"  end | select(length > 0)"`
   finalList=`paste <(echo "$amiIdList") <(echo "$versionList") | sed 's/\t/ | /'`
