@@ -10,8 +10,10 @@ export RED='\033[1;31m'
 export ORANGE='\033[0;33m'
 export YELLOW='\033[1;33m'
 export GREEN='\033[1;32m'
+export CYAN='\033[0;36m'
 export NC='\033[0m'
 
+## Helper functions
 function printHeader {
   clear
   echo "######################################################################"
@@ -25,34 +27,36 @@ function printSeparator {
 
 #####  MAIN MENU  ####
 function mainMenuScreen {
-  printHeader "${IMAGE_NAME} AMI & Deploy Manager"
-  echo -e "Escolha uma opcão:"
-  echo -e " ${YELLOW}1)${NC} Criar nova versão de imagem AMI à partir dessa máquina"
-  echo -e " ${YELLOW}2)${NC} Gerenciar versões AMI disponíves na AWS" 
-  echo -e " ${YELLOW}3)${NC} Sair" 
-  printSeparator
-  read -p "Opcão: " -r -n1
-  echo
-    
-  case "$REPLY" in
-    1)
-      newAmiScreen
-      ;;
-    2)
-      echo "2 selecionado"
-      sleep 1
-      mainMenuScreen
-      ;;
-    3)
-      echo "3 selecionado"
-      sleep 1
-      mainMenuScreen
-      ;;
-    *)
-      echo -e " ${RED}Ei! ${YELLOW} '${REPLY}' ${RED} não é opcão válida! Vamos tentar denovo?${NC}"
-      sleep 2
-      mainMenuScreen
-  esac
+  while : 
+  do
+    printHeader "${IMAGE_NAME} AMI & Deploy Manager"
+    echo -e "Escolha uma opcão:"
+    echo -e " ${YELLOW}1)${NC} Criar nova versão de imagem AMI à partir dessa máquina"
+    echo -e " ${YELLOW}2)${NC} Gerenciar versões AMI disponíves na AWS" 
+    echo -e " ${YELLOW}0)${NC} Sair" 
+    printSeparator
+    read -p "Opcão: " -r -n1
+    echo
+      
+    case "$REPLY" in
+      1)
+	newAmiScreen
+	;;
+      2)
+	listAmiScreen
+	;;
+      0)
+	printSeparator
+	echo -e "${CYAN}Até logo!${NC}"
+	printSeparator
+	exit 0
+	;;
+      *)
+	echo -e " ${RED}Ei! ${YELLOW} '${REPLY}' ${RED} não é opcão válida! Vamos tentar denovo?${NC}"
+	sleep 2
+	mainMenuScreen
+    esac
+  done
 }
 
 ### New AMI screen
@@ -63,7 +67,7 @@ function newAmiScreen {
   if [ -z "$REPLY" ]
     then
       echo -e "${RED}Você não digitou a versão!"
-      echo -e "${RED}Na duvida? Dê uma olhada na lista de versões disponíveis. "
+      echo -e "${ORANGE}Na duvida? Dê uma olhada na lista de versões disponíveis. "
       echo -e "Voltamos ao menu principal logo após os intervalos comerciais...${NC}"
       printSeparator 
       sleep 4
@@ -110,6 +114,7 @@ function newAmiScreen {
       printSeparator
       exit 4
     fi
+    echo -e "${GREEN} [OK]${NC}"
     echo "Criacão da AMI deu rock'n roll! Pressione Enter para voltar."
     printSeparator
     read
@@ -117,6 +122,50 @@ function newAmiScreen {
   fi
 }
 
+### List AMI screen
+function listAmiScreen {
+  clear
+  printHeader "Listagem e Gerenciamento de AMI's"
+  echo -e "Escolha uma opcão:"
+    echo -e " ${YELLOW}1)${NC} Atualizar a listagem"
+    echo -e " ${YELLOW}2)${NC} Deletar Versão AMI" 
+    echo -e " ${YELLOW}3)${NC} Fazer deploy de versão no Auto Scaling Group" 
+    echo -e " ${YELLOW}0)${NC} Voltar"
+    printSeparator
+    keepAsking=1
+    while [ $keepAsking -eq 1 ] ; do
+      read -p "Opcão: " -r -n1
+      echo
+      keepAsking=0
+      case "$REPLY" in
+	1)
+	  listAmiScreen
+	  ;;
+	2)
+	  return 0
+	  ;;
+	3)
+	  return 0
+	  ;;
+	0)
+	  return 0
+	  ;;
+	*)
+	  echo -e " ${RED}Ei! ${YELLOW} '${REPLY}' ${RED} não é opcão válida! Vamos tentar denovo?${NC}"
+	  keepAsking=1
+      esac
+    done
+}
+
+## List AMI 'frame'
+function listAmiFrame {
+  json=`aws ec2 describe-images --filters Name=tag:${CONTROL_TAG},Values=true`
+  amiIdList=`echo $json | jq -r '.[] | .[] | .ImageId'`
+  versionList=`echo $json | jq -r ".[] | .[] | .Tags | .[] | if .Key == \"${VERSION_TAG}\"then .Value else \"\"  end | select(length > 0)"`
+  finalList=`paste <(echo "$amiIdList") <(echo "$versionList") | sed 's/\t/ | /'`
+  echo "   AMI ID    |  Tagged Version "
+  echo "$finalList"
+}
 
 
 ### Script excution begin
