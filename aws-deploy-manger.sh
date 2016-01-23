@@ -158,11 +158,11 @@ function deleteAmiScreen {
     echo -e "${GREEN} [OK]${NC}"
     
     ## Deregister AMI
-    echo -n "Enviando request de delecão do Snapshot EBS (ID: ${snapshotId})..."
+    echo -n "Enviando request para desregistro da AMI: ${REPLY})..."
     aws ec2 deregister-image --image-id "$REPLY"
     if [ "$?" -ne 0 ] ; then
       echo -e "${RED} [FALHOU]${NC}"
-      echo "Erro ao tentar desregistrar AMI ${$REPLY}. Abortando."
+      echo "Erro ao tentar desregistrar AMI ${REPLY}. Abortando."
       printSeparator
       exit 4
     fi
@@ -178,8 +178,8 @@ function deleteAmiScreen {
       exit 4
     fi
     echo -e "${GREEN} [OK]${NC}"
-    
-    read -p "AMI Deletada! Pressione ${CYAN}Enter${NC} para voltar."
+    echo -e "AMI Deletada! Pressione ${CYAN}Enter${NC} para voltar."
+    read
 }
 
 ## List AMI 'frame'
