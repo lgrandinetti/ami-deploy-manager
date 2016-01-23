@@ -96,7 +96,8 @@ function newAmiScreen {
   fi
   echo -e "${GREEN} [OK]${NC}"
 
-  read -p "Será criada uma AMI com a versão '$versionName'. Confirma? [s/n] " -r
+  echo -e "Será criada uma AMI com a versão ${YELLOW}'$versionName'.${NC}"
+  read -p "Confirma? [s/n] " -r
   printSeparator
   if [[ $REPLY =~ ^[Ss]$ ]]
   then
@@ -122,7 +123,7 @@ function newAmiScreen {
       exit 4
     fi
     echo -e "${GREEN} [OK]${NC}"
-    echo "Criacão da AMI deu rock'n roll! Pressione Enter para voltar."
+    echo -e "Criacão da AMI deu rock'n roll! Pressione ${CYAN}Enter${NC} para voltar."
     printSeparator
     read
 
@@ -147,7 +148,7 @@ function deleteAmiScreen {
     
     ## Queries AMI information and get EBS volume ID
     echo -n "Consultando dados da Imagem..."
-    snapshotId=`aws ec2 describe-images --image-ids "$REPLY" | jq -r ".[] | .[] | .BlockDeviceMappings | .[] | .Ebs | .SnapshotId`
+    snapshotId=`aws ec2 describe-images --image-ids "$REPLY" | jq -r '.[] | .[] | .BlockDeviceMappings | .[] | .Ebs | .SnapshotId'`
     if [ "$?" -ne 0 ] ; then
       echo -e "${RED} [FALHOU]${NC}"
       echo "Erro ao consultar dados da AMI. Abortando."
@@ -178,7 +179,7 @@ function deleteAmiScreen {
     fi
     echo -e "${GREEN} [OK]${NC}"
     
-    read -p "AMI Deletada! Pressione 'Enter' para voltar."
+    read -p "AMI Deletada! Pressione ${CYAN}Enter${NC} para voltar."
 }
 
 ## List AMI 'frame'
