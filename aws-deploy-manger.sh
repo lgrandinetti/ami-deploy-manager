@@ -32,7 +32,9 @@ function mainMenuScreen {
     printHeader "${IMAGE_NAME} AMI & Deploy Manager"
     echo -e "Escolha uma opcão:"
     echo -e " ${YELLOW}1)${NC} Criar nova versão de imagem AMI à partir dessa máquina"
-    echo -e " ${YELLOW}2)${NC} Gerenciar versões AMI disponíves na AWS" 
+    echo -e " ${YELLOW}2)${NC} Deletar Versão AMI" 
+    echo -e " ${YELLOW}3)${NC} Fazer deploy de versão no Auto Scaling Group" 
+    
     echo -e " ${YELLOW}0)${NC} Sair" 
     printSeparator
     read -p "Opcão: " -r -n1
@@ -43,7 +45,12 @@ function mainMenuScreen {
 	newAmiScreen
 	;;
       2)
-	listAmiScreen
+	deleteAmiScreen
+	;;
+      3)
+	echo -e "${YELLOW}Em breve, em um cinema perto de você!${NC}"
+	sleep 2
+	mainMenuScreen
 	;;
       0)
 	printSeparator
@@ -123,42 +130,55 @@ function newAmiScreen {
 }
 
 ### List AMI screen
-function listAmiScreen {
+function deleteAmiScreen {
   clear
-  printHeader "Listagem e Gerenciamento de AMI's"
+  printHeader "DELECÃO DE IMAGEM AMI"
   listAmiFrame
   
   printSeparator
   
-  echo -e "Escolha uma opcão:"
-    echo -e " ${YELLOW}1)${NC} Atualizar a listagem"
-    echo -e " ${YELLOW}2)${NC} Deletar Versão AMI" 
-    echo -e " ${YELLOW}3)${NC} Fazer deploy de versão no Auto Scaling Group" 
-    echo -e " ${YELLOW}0)${NC} Voltar"
+  echo -e "Digite o ID da imagem a ser ${RED}DELETADA${NC} ou enter para volar:"
+    
+    read -p "AMI ID: "
     printSeparator
-    keepAsking=1
-    while [ $keepAsking -eq 1 ] ; do
-      read -p "Opcão: " -r -n1
-      echo
-      keepAsking=0
-      case "$REPLY" in
-	1)
-	  listAmiScreen
-	  ;;
-	2)
-	  return 0
-	  ;;
-	3)
-	  return 0
-	  ;;
-	0)
-	  return 0
-	  ;;
-	*)
-	  echo -e " ${RED}Ei! ${YELLOW} '${REPLY}' ${RED} não é opcão válida! Vamos tentar denovo?${NC}"
-	  keepAsking=1
-      esac
-    done
+    if [ -z "$REPLY" ] ; then
+      return
+    fi
+    
+    ## Queries AMI information and get EBS volume ID
+    echo -n "Consultando dados da Imagem..."
+    snapshotId=`aws ec2 describe-images --image-ids "$REPLY" | jq -r ".[] | .[] | .BlockDeviceMappings | .[] | .Ebs | .SnapshotId`
+    if [ "$?" -ne 0 ] ; then
+      echo -e "${RED} [FALHOU]${NC}"
+      echo "Erro ao consultar dados da AMI. Abortando."
+      printSeparator
+      exit 4
+    fi
+    echo -e "${GREEN} [OK]${NC}"
+    
+    ## Deregister AMI
+    echo -n "Enviando request de delecão do Snapshot EBS (ID: ${snapshotId})..."
+    aws ec2 deregister-image --image-id "$REPLY"
+    if [ "$?" -ne 0 ] ; then
+      echo -e "${RED} [FALHOU]${NC}"
+      echo "Erro ao tentar desregistrar AMI ${$REPLY}. Abortando."
+      printSeparator
+      exit 4
+    fi
+    echo -e "${GREEN} [OK]${NC}"
+    
+    ## Delete EBS snapshot
+    echo -n "Enviando request de delecão do Snapshot EBS (ID: ${snapshotId})..."
+    aws ec2 delete-snapshot --snapshot-id ${snapshotId}
+    if [ "$?" -ne 0 ] ; then
+      echo -e "${RED} [FALHOU]${NC}"
+      echo "Erro ao tentar remover Snapshot EBS ${snapshotId}. Abortando."
+      printSeparator
+      exit 4
+    fi
+    echo -e "${GREEN} [OK]${NC}"
+    
+    read -p "AMI Deletada! Pressione 'Enter' para voltar."
 }
 
 ## List AMI 'frame'
@@ -167,6 +187,9 @@ function listAmiFrame {
   json=`aws ec2 describe-images --filters Name=tag:${CONTROL_TAG},Values=true`
   if [ "$?" -ne 0 ] ; then
     echo -e "${RED} [FALHOU]${NC}"
+    echo "Erro ao listar imagens. Abortando."
+    printSeparator
+    exit 4
   else
     echo -e "${GREEN} [OK]${NC}"
   fi
