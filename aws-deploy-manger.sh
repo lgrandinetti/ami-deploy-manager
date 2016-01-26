@@ -214,17 +214,18 @@ function updateLaunchConfigurationScreen {
   if [ -z "$REPLY" ] ; then
     return
   fi
+  newAmiId=$REPLY
     
   ## Queries for AMI version
   echo -n "Consultando dados da Imagem..."
-  newAmiVersion=`aws ec2 describe-images --image-ids "$REPLY" | jq -r ".Images | .[0] | .Tags | .[] | if .Key == \"${VERSION_TAG}\"then .Value else \"\"  end | select(length > 0)"`
+  newAmiVersion=`aws ec2 describe-images --image-ids "$newAmiId" | jq -r ".Images | .[0] | .Tags | .[] | if .Key == \"${VERSION_TAG}\"then .Value else \"\"  end | select(length > 0)"`
   newLaunchConfigurationName="${AUTO_SCALING_GROUP_NAME}-${newAmiVersion}"
   checkError $?
   
   printSeparator
   echo "Novo launch config:"
   echo -e "Nome:           ${CYAN}${newLaunchConfigurationName}${NC}"
-  echo -e "Ami:            ${CYAN}${REPLY}${NC}"
+  echo -e "Ami:            ${CYAN}${newAmiId}${NC}"
   echo -e "Key:            ${CYAN}${keyName}${NC}"
   echo -e "Security Group: ${CYAN}${securityGroup}${NC}"
   read -p "Confirma? [s/n] " -r
@@ -232,7 +233,7 @@ function updateLaunchConfigurationScreen {
   if [[ $REPLY =~ ^[Ss]$ ]] ; then 
     # Create new launch configuration
     echo -n "Criando novo launch configuration..."
-    echo aws autoscaling create-launch-configuration --launch-configuration-name "${newLaunchConfigurationName}" --key-name ${keyName} --security-groups ${securityGroup} --instance-type ${instanceType} --image-id=${REPLY}
+    echo aws autoscaling create-launch-configuration --launch-configuration-name "${newLaunchConfigurationName}" --key-name ${keyName} --security-groups ${securityGroup} --instance-type ${instanceType} --image-id=${newAmiId}
     checkError $?
     printSeparator
   
