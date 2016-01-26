@@ -211,7 +211,6 @@ function updateLaunchConfigurationScreen {
   
   echo -e "Digite o ID da imagem a ser Substituída no Auto Scaling Group ou enter para volar:"  
   read -p "AMI ID: "
-  printSeparator
   if [ -z "$REPLY" ] ; then
     return
   fi
@@ -222,7 +221,8 @@ function updateLaunchConfigurationScreen {
   newLaunchConfigurationName="${AUTO_SCALING_GROUP_NAME}-${newAmiVersion}"
   checkError $?
   
-  echo "Novo launch será criado e atualizado:"
+  printSeparator
+  echo "Novo launch config:"
   echo -e "Nome:           ${CYAN}${newLaunchConfigurationName}${NC}"
   echo -e "Ami:            ${CYAN}${REPLY}${NC}"
   echo -e "Key:            ${CYAN}${keyName}${NC}"
@@ -230,21 +230,22 @@ function updateLaunchConfigurationScreen {
   read -p "Confirma? [s/n] " -r
   printSeparator
   if [[ $REPLY =~ ^[Ss]$ ]] ; then 
-    ## Create new launch configuration
-    ##echo -n "Criando novo launch configuration..."
-    ##aws autoscaling create-launch-configuration --launch-configuration-name "${newLaunchConfigurationName}" --key-name ${keyName} --security-groups ${securityGroup} --instance-type ${instanceType} --image-id=${REPLY}
-    ##checkError $?
-    ##printSeparator
+    # Create new launch configuration
+    echo -n "Criando novo launch configuration..."
+    echo aws autoscaling create-launch-configuration --launch-configuration-name "${newLaunchConfigurationName}" --key-name ${keyName} --security-groups ${securityGroup} --instance-type ${instanceType} --image-id=${REPLY}
+    checkError $?
+    printSeparator
   
-    ##echo -n "Substituindo launch configuration no security group..."
-    ##aws autoscaling update-auto-scaling-group --auto-scaling-group-name "${AUTO_SCALING_GROUP_NAME}" --launch-configuration-name "${newLaunchConfigurationName}"
-    ##checkError $?
-    ##
+    echo -n "Substituindo launch configuration no security group..."
+    echo aws autoscaling update-auto-scaling-group --auto-scaling-group-name "${AUTO_SCALING_GROUP_NAME}" --launch-configuration-name "${newLaunchConfigurationName}"
+    checkError $?
     
-    ## echo -n "Deletando antigo launch configuration (${currentLaunchConfigurationName})..."
-    ##aws autoscaling delete-launch-configuration --launch-configuration-name "${currentLaunchConfigurationName}"
-    ##checkError $?
     
+    echo -n "Deletando antigo launch configuration (${currentLaunchConfigurationName})..."
+    echo aws autoscaling delete-launch-configuration --launch-configuration-name "${currentLaunchConfigurationName}"
+    checkError $?
+    
+    ## TODO: Ask for ha-release
     echo -e "Update de versão realizado! Pressione ${CYAN}Enter${NC} para voltar."
     read
   fi
