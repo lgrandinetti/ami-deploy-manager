@@ -4,6 +4,7 @@
 export IMAGE_NAME="MaisIntercambio Web Server"
 export CONTROL_TAG="MI-VERSIONED-IMAGE"
 export VERSION_TAG="MI-VERSION"
+export AUTO_SCALING_GROUP_NAME="maisintercambio-producao"
 
 ## Script constants
 export RED='\033[1;31m'
@@ -33,8 +34,8 @@ function mainMenuScreen {
     echo -e "Escolha uma opcão:"
     echo -e " ${YELLOW}1)${NC} Criar nova versão de imagem AMI à partir dessa máquina"
     echo -e " ${YELLOW}2)${NC} Deletar Versão AMI" 
-    echo -e " ${YELLOW}3)${NC} Fazer deploy de versão no Auto Scaling Group" 
-    
+    echo -e " ${YELLOW}3)${NC} Modificar versão AMI do Auto Scaling Group"
+    echo -e " ${YELLOW}4)${NC} Forçar atualização das instancias do Auto Scaling Group" 
     echo -e " ${YELLOW}0)${NC} Sair" 
     printSeparator
     read -p "Opcão: " -r -n1
@@ -48,6 +49,9 @@ function mainMenuScreen {
 	deleteAmiScreen
 	;;
       3)
+	updateLaunchConfigurationScreen
+	;;
+      4)
 	echo -e "${YELLOW}Em breve, em um cinema perto de você!${NC}"
 	sleep 2
 	mainMenuScreen
@@ -74,10 +78,10 @@ function newAmiScreen {
   if [ -z "$REPLY" ]
     then
       echo -e "${RED}Você não digitou a versão!"
-      echo -e "${ORANGE}Na duvida? Dê uma olhada na lista de versões disponíveis. "
+      echo -e "${CYAN}Na duvida? Dê uma olhada na lista de versões disponíveis. "
       echo -e "Voltamos ao menu principal logo após os intervalos comerciais...${NC}"
       printSeparator 
-      sleep 4
+      sleep 5
       return 1
   fi
   versionName="$REPLY"
@@ -130,7 +134,7 @@ function newAmiScreen {
   fi
 }
 
-### List AMI screen
+### Delete AMI screen
 function deleteAmiScreen {
   clear
   printHeader "DELECÃO DE IMAGEM AMI"
@@ -182,25 +186,99 @@ function deleteAmiScreen {
     read
 }
 
+### Delete AMI screen
+function updateLaunchConfigurationScreen {
+  clear
+  printHeader "ALTERAÇÃO DA VERSÃO AMI NO AUTO SCALING GROUP"
+  
+  ## Queries Auto Scaling group for current launch configuration name
+  echo -n "Consultando dados do auto scaling group '${AUTO_SCALING_GROUP_NAME}'"
+  currentLaunchConfigurationName=`aws autoscaling describe-auto-scaling-groups --auto-scaling-group-name "${AUTO_SCALING_GROUP_NAME}" | jq -r '.AutoScalingGroups | .[] | .LaunchConfigurationName'`
+  checkError $?
+  
+  ## Queries for current launch configuration data
+  echo -n "Consultando dados do launch configuration '${currentLaunchConfigurationName}'"
+  currentLaunchConfigurationJson=`aws autoscaling describe-launch-configurations --launch-configuration-names "${currentLaunchConfigurationName}"`
+  checkError $?
+  
+  currentAmi=`echo $currentLaunchConfigurationJson | jq -r '.LaunchConfigurations | .[0] | .ImageId'`
+  instanceType=`echo $currentLaunchConfigurationJson | jq -r '.LaunchConfigurations | .[0] | .InstanceType'`
+  securityGroup=`echo $currentLaunchConfigurationJson | jq -r '.LaunchConfigurations | .[0] | .SecurityGroups | .[0]'`
+  keyName=`echo $currentLaunchConfigurationJson | jq -r '.LaunchConfigurations | .[0] | .KeyName'`
+  
+  listAmiFrame $currentAmi
+  printSeparator
+  
+  echo -e "Digite o ID da imagem a ser Substituída no Auto Scaling Group ou enter para volar:"  
+  read -p "AMI ID: "
+  printSeparator
+  if [ -z "$REPLY" ] ; then
+    return
+  fi
+    
+  ## Queries for AMI version
+  echo -n "Consultando dados da Imagem..."
+  newAmiVersion=`aws ec2 describe-images --image-ids "$REPLY" | jq -r ".Images | .[0] | .Tags | .[] | if .Key == \"${VERSION_TAG}\"then .Value else \"\"  end | select(length > 0)"`
+  newLaunchConfigurationName="${AUTO_SCALING_GROUP_NAME}-${newAmiVersion}"
+  checkError $?
+  
+  echo "Novo launch será criado e atualizado:"
+  echo -e "Nome:           ${CYAN}${newLaunchConfigurationName}${NC}"
+  echo -e "Ami:            ${CYAN}${REPLY}${NC}"
+  echo -e "Key:            ${CYAN}${keyName}${NC}"
+  echo -e "Security Group: ${CYAN}${securityGroup}${NC}"
+  read -p "Confirma? [s/n] " -r
+  printSeparator
+  if [[ $REPLY =~ ^[Ss]$ ]] ; then 
+    ## Create new launch configuration
+    ##echo -n "Criando novo launch configuration..."
+    ##aws autoscaling create-launch-configuration --launch-configuration-name "${newLaunchConfigurationName}" --key-name ${keyName} --security-groups ${securityGroup} --instance-type ${instanceType} --image-id=${REPLY}
+    ##checkError $?
+    ##printSeparator
+  
+    ##echo -n "Substituindo launch configuration no security group..."
+    ##aws autoscaling update-auto-scaling-group --auto-scaling-group-name "${AUTO_SCALING_GROUP_NAME}" --launch-configuration-name "${newLaunchConfigurationName}"
+    ##checkError $?
+    ##
+    
+    ## echo -n "Deletando antigo launch configuration (${currentLaunchConfigurationName})..."
+    ##aws autoscaling delete-launch-configuration --launch-configuration-name "${currentLaunchConfigurationName}"
+    ##checkError $?
+    
+    echo -e "Update de versão realizado! Pressione ${CYAN}Enter${NC} para voltar."
+    read
+  fi
+}
+
 ## List AMI 'frame'
 function listAmiFrame {
   echo -n "Carregando listagem..."
   json=`aws ec2 describe-images --filters Name=tag:${CONTROL_TAG},Values=true`
-  if [ "$?" -ne 0 ] ; then
+  checkError $?
+  printSeparator
+  amiIdList=`echo $json | jq -r '.[] | .[] | .ImageId' | sed 's/^/  /g'` # Last sed just adds two empty spaces to the beginning
+  versionList=`echo $json | jq -r ".[] | .[] | .Tags | .[] | if .Key == \"${VERSION_TAG}\"then .Value else \"\"  end | select(length > 0)"`
+  if [ -z "$1" ] ; then
+    finalList=`paste <(echo "$amiIdList") <(echo "$versionList") | sed 's/\t/ | /'`
+  else
+    finalList=`paste <(echo "$amiIdList") <(echo "$versionList") | sed "s/  ${1}/* ${1}/" |sed 's/\t/ | /'`
+  fi
+  echo -e "${ORANGE}    AMI ID     | Versão ${NC}"
+  echo -e "${YELLOW}${finalList}${NC}"
+  if [ -n "$1" ] ; then
+    echo
+    echo -e "${CYAN}* indica a imagem atualmente configurada no Auto Scaling group ${NC}"
+  fi  
+}
+
+function checkError {
+  if [ "$1" -ne 0 ] ; then
     echo -e "${RED} [FALHOU]${NC}"
-    echo "Erro ao listar imagens. Abortando."
+    echo "Erro na chamada do comando. Abortando."
     printSeparator
     exit 4
-  else
-    echo -e "${GREEN} [OK]${NC}"
   fi
-  printSeparator
-  amiIdList=`echo $json | jq -r '.[] | .[] | .ImageId'`
-  versionList=`echo $json | jq -r ".[] | .[] | .Tags | .[] | if .Key == \"${VERSION_TAG}\"then .Value else \"\"  end | select(length > 0)"`
-  finalList=`paste <(echo "$amiIdList") <(echo "$versionList") | sed 's/\t/ | /'`
-  echo -e "${ORANGE}  AMI ID     | Versão ${NC}"
-  echo -e "${YELLOW}${finalList}${NC}"
-  
+  echo -e "${GREEN} [OK]${NC}"
 }
 
 
