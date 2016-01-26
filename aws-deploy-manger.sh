@@ -209,12 +209,19 @@ function updateLaunchConfigurationScreen {
   listAmiFrame $currentAmi
   printSeparator
   
-  echo -e "Digite o ID da imagem a ser Substituída no Auto Scaling Group ou enter para volar:"  
+  echo -e "Digite o ID da imagem a ser Substituída no Auto Scaling Group ou enter para voltar:"  
   read -p "AMI ID: "
   if [ -z "$REPLY" ] ; then
     return
   fi
   newAmiId=$REPLY
+  
+  if [ "$newAmiId" = "$currentAmi" ] ; then
+    echo -e "${RED}Eeeiii!!! ${YELLOW}Você digitou o id da AMI que já está ativo no Auto Scaling."
+    echo -e "${CYAN}Que tal lavar o rosto e pegar um café enquanto eu volto para o menu principal?${NC}"
+    sleep 5
+    return
+  fi
     
   ## Queries for AMI version
   echo -n "Consultando dados da Imagem..."
@@ -226,6 +233,8 @@ function updateLaunchConfigurationScreen {
   echo "Novo launch config:"
   echo -e "Nome:           ${CYAN}${newLaunchConfigurationName}${NC}"
   echo -e "Ami:            ${CYAN}${newAmiId}${NC}"
+  echo -e "Versão:         ${CYAN}${newAmiVersion}${NC}"
+  echo -e "Instance Type:  ${CYAN}${instanceType}${NC}"
   echo -e "Key:            ${CYAN}${keyName}${NC}"
   echo -e "Security Group: ${CYAN}${securityGroup}${NC}"
   read -p "Confirma? [s/n] " -r
@@ -233,7 +242,7 @@ function updateLaunchConfigurationScreen {
   if [[ $REPLY =~ ^[Ss]$ ]] ; then 
     # Create new launch configuration
     echo -n "Criando novo launch configuration..."
-    echo aws autoscaling create-launch-configuration --launch-configuration-name "${newLaunchConfigurationName}" --key-name ${keyName} --security-groups ${securityGroup} --instance-type ${instanceType} --image-id=${newAmiId}
+    echo aws autoscaling create-launch-configuration --launch-configuration-name "${newLaunchConfigurationName}" --key-name ${keyName} --security-groups ${securityGroup} --instance-type ${instanceType} --image-id ${newAmiId}
     checkError $?
     printSeparator
   
