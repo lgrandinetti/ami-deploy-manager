@@ -217,9 +217,9 @@ function updateLaunchConfigurationScreen {
   newAmiId=$REPLY
   
   if [ "$newAmiId" = "$currentAmi" ] ; then
-    echo -e "${RED}Eeeiii!!! ${YELLOW}Você digitou o id da AMI que já está ativo no Auto Scaling."
+    echo -e "${RED}Eeeiii!!! ${YELLOW}Você digitou o id da AMI que já está ativo no Auto Scaling Group."
     echo -e "${CYAN}Que tal lavar o rosto e pegar um café enquanto eu volto para o menu principal?${NC}"
-    sleep 5
+    sleep 8
     return
   fi
     
@@ -242,17 +242,16 @@ function updateLaunchConfigurationScreen {
   if [[ $REPLY =~ ^[Ss]$ ]] ; then 
     # Create new launch configuration
     echo -n "Criando novo launch configuration..."
-    echo aws autoscaling create-launch-configuration --launch-configuration-name "${newLaunchConfigurationName}" --key-name ${keyName} --security-groups ${securityGroup} --instance-type ${instanceType} --image-id ${newAmiId}
+    aws autoscaling create-launch-configuration --launch-configuration-name "${newLaunchConfigurationName}" --key-name ${keyName} --security-groups ${securityGroup} --instance-type ${instanceType} --image-id ${newAmiId}
     checkError $?
-    printSeparator
   
-    echo -n "Substituindo launch configuration no security group..."
-    echo aws autoscaling update-auto-scaling-group --auto-scaling-group-name "${AUTO_SCALING_GROUP_NAME}" --launch-configuration-name "${newLaunchConfigurationName}"
+    echo -n "Substituindo launch configuration no Auto Scaling Group..."
+    aws autoscaling update-auto-scaling-group --auto-scaling-group-name "${AUTO_SCALING_GROUP_NAME}" --launch-configuration-name "${newLaunchConfigurationName}"
     checkError $?
     
     
     echo -n "Deletando antigo launch configuration (${currentLaunchConfigurationName})..."
-    echo aws autoscaling delete-launch-configuration --launch-configuration-name "${currentLaunchConfigurationName}"
+    aws autoscaling delete-launch-configuration --launch-configuration-name "${currentLaunchConfigurationName}"
     checkError $?
     
     ## TODO: Ask for ha-release
