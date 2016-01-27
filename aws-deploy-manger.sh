@@ -35,9 +35,10 @@ function mainMenuScreen {
     printHeader "${IMAGE_NAME} AMI & Deploy Manager"
     echo -e "Escolha uma opcão:"
     echo -e " ${YELLOW}1)${NC} Criar nova versão de imagem AMI à partir dessa máquina"
-    echo -e " ${YELLOW}2)${NC} Deletar Versão AMI" 
-    echo -e " ${YELLOW}3)${NC} Modificar versão AMI do Auto Scaling Group"
-    echo -e " ${YELLOW}4)${NC} Forçar atualização das instancias do Auto Scaling Group" 
+    echo -e " ${YELLOW}2)${NC} Listar versoes AMI"
+    echo -e " ${YELLOW}3)${NC} Deletar Versão AMI"
+    echo -e " ${YELLOW}4)${NC} Modificar versão AMI do Auto Scaling Group"
+    echo -e " ${YELLOW}5)${NC} Forçar atualização das instancias do Auto Scaling Group" 
     echo -e " ${YELLOW}0)${NC} Sair" 
     printSeparator
     read -p "Opcão: " -r -n1
@@ -48,12 +49,15 @@ function mainMenuScreen {
 	newAmiScreen
 	;;
       2)
-	deleteAmiScreen
+	listAmiScreen
 	;;
       3)
-	updateLaunchConfigurationScreen
+	deleteAmiScreen
 	;;
       4)
+	updateLaunchConfigurationScreen
+	;;
+      5)
 	awsHaReleaseScreen
 	;;
       0)
@@ -132,6 +136,16 @@ function newAmiScreen {
     read
 
   fi
+}
+
+### Delete AMI screen
+function listAmiScreen {
+  clear
+  printHeader "LISTAGEM DE IMAGENS AMI"
+  listAmiFrame
+  printSeparator
+  echo -e "Pressione ${CYAN}Enter${NC} para voltar."
+  read
 }
 
 ### Delete AMI screen
