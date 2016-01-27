@@ -1,10 +1,12 @@
 #!/bin/bash
 
 ####  Main configurations
-export IMAGE_NAME="MaisIntercambio Web Server"
-export CONTROL_TAG="MI-VERSIONED-IMAGE"
-export VERSION_TAG="MI-VERSION"
-export AUTO_SCALING_GROUP_NAME="maisintercambio-producao"
+export IMAGE_NAME=""
+export CONTROL_TAG=""
+export VERSION_TAG=""
+export AUTO_SCALING_GROUP_NAME=""
+export AUTO_SCALING_GROUP_REGION="sa-east-1"
+export AWS_HA_RELEASE="../aws-missing-tools/aws-ha-release/aws-ha-release.sh"
 
 ## Script constants
 export RED='\033[1;31m'
@@ -52,9 +54,7 @@ function mainMenuScreen {
 	updateLaunchConfigurationScreen
 	;;
       4)
-	echo -e "${YELLOW}Em breve, em um cinema perto de você!${NC}"
-	sleep 2
-	mainMenuScreen
+	awsHaReleaseScreen
 	;;
       0)
 	printSeparator
@@ -254,10 +254,29 @@ function updateLaunchConfigurationScreen {
     aws autoscaling delete-launch-configuration --launch-configuration-name "${currentLaunchConfigurationName}"
     checkError $?
     
-    ## TODO: Ask for ha-release
-    echo -e "Update de versão realizado! Pressione ${CYAN}Enter${NC} para voltar."
-    read
+    printSeparator
+    
+    read -p "Auto Scaling Group atualizado com a AMI selecionada. Deseja forcar o reload das instancias? [s/n] " -r
+    if [[ $REPLY =~ ^[Ss]$ ]] ; then 
+      callAwsHaRelease
+      checkError $?
+      echo -e "Update de versão finalizado! Pressione ${CYAN}Enter${NC} para voltar."
+      read
+    fi
   fi
+}
+
+## AwsHaReleaseScreen
+function awsHaReleaseScreen {
+  clear
+  printHeader "FORCAR RELOAD DAS INSTANCIAS NO AUTO SCALING GROUP"
+  read -p "Tem certeza? [s/n] " -r
+    if [[ $REPLY =~ ^[Ss]$ ]] ; then 
+      callAwsHaRelease
+      checkError $?
+      echo -e "Reload finalizado! Pressione ${CYAN}Enter${NC} para voltar."
+      read
+    fi
 }
 
 ## List AMI 'frame'
@@ -279,6 +298,17 @@ function listAmiFrame {
     echo
     echo -e "${CYAN}* indica a imagem atualmente configurada no Auto Scaling group ${NC}"
   fi  
+}
+
+function callAwsHaRelease
+{
+  printSeparator
+  echo "Executando:"
+  echo $AWS_HA_RELEASE -a "${AUTO_SCALING_GROUP_NAME}" -r ${AUTO_SCALING_GROUP_REGION}
+  echo
+  $AWS_HA_RELEASE -a "${AUTO_SCALING_GROUP_NAME}" -r ${AUTO_SCALING_GROUP_REGION}
+  printSeparator
+  return $?
 }
 
 function checkError {
